@@ -1,19 +1,41 @@
 import os
 import mimetypes
 import time
-from typing import List, Optional
+import base64
+from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from google.genai import types
 
-from models import MixImagesResponse, HealthResponse, ErrorResponse
+from models import (
+    MixImagesResponse, 
+    HealthResponse, 
+    ErrorResponse,
+    TorsoDetectionResponse,
+    VirtualTryOnResponse,
+    ClothingFitAnalysisResponse,
+    MultipleAnglesResponse,
+    ImageEnhancementResponse
+)
+from torso_detection import create_torso_detector
+from clothing_overlay import create_clothing_overlay
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Image Mixer API",
-    description="API para mezclar imágenes usando Google Generative AI",
-    version="1.0.0"
+    title="Virtual Try-On AI API",
+    description="API para probador virtual con IA usando Google Gemini",
+    version="2.0.0"
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],  # Frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 MODEL_NAME = "gemini-2.5-flash-image-preview"
@@ -175,6 +197,357 @@ async def save_binary_file(file_name: str, data: bytes):
     """Guarda datos binarios en un archivo especificado."""
     with open(file_name, "wb") as f:
         f.write(data)
+
+
+# ==================== VIRTUAL TRY-ON ENDPOINTS ====================
+
+@app.post("/detect-torso", response_model=TorsoDetectionResponse)
+async def detect_torso(
+    person_image: UploadFile = File(..., description="Imagen de la persona para detectar el torso")
+):
+    """
+    Detecta y analiza el torso humano en una imagen.
+    
+    - **person_image**: Imagen de la persona para análisis
+    """
+    try:
+        # Validar tipo de archivo
+        if not person_image.content_type or not person_image.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El archivo debe ser una imagen válida"
+            )
+        
+        # Verificar API key
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GEMINI_API_KEY o GOOGLE_API_KEY no está configurada"
+            )
+        
+        # Leer imagen
+        image_data = await person_image.read()
+        
+        # Crear detector de torso
+        torso_detector = await create_torso_detector()
+        
+        # Detectar torso
+        analysis = await torso_detector.detect_torso(
+            image_data, 
+            person_image.content_type
+        )
+        
+        return TorsoDetectionResponse(
+            success=True,
+            message="Análisis de torso completado exitosamente",
+            analysis=analysis
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error en detección de torso: {str(e)}"
+        )
+
+
+@app.post("/virtual-try-on", response_model=VirtualTryOnResponse)
+async def virtual_try_on(
+    person_image: UploadFile = File(..., description="Imagen de la persona"),
+    clothing_image: UploadFile = File(..., description="Imagen de la prenda"),
+    clothing_type: str = Form("shirt", description="Tipo de prenda (shirt, dress, jacket, etc.)"),
+    style_preferences: Optional[str] = Form(None, description="Preferencias de estilo en JSON")
+):
+    """
+    Crea una imagen de la persona con la prenda superpuesta.
+    
+    - **person_image**: Imagen de la persona
+    - **clothing_image**: Imagen de la prenda
+    - **clothing_type**: Tipo de prenda
+    - **style_preferences**: Preferencias de estilo opcionales
+    """
+    try:
+        # Validar tipos de archivo
+        for image, name in [(person_image, "person"), (clothing_image, "clothing")]:
+            if not image.content_type or not image.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"El archivo {name} debe ser una imagen válida"
+                )
+        
+        # Verificar API key
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GEMINI_API_KEY o GOOGLE_API_KEY no está configurada"
+            )
+        
+        # Leer imágenes
+        person_data = await person_image.read()
+        clothing_data = await clothing_image.read()
+        
+        # Parsear preferencias de estilo
+        style_prefs = None
+        if style_preferences:
+            try:
+                import json
+                style_prefs = json.loads(style_preferences)
+            except json.JSONDecodeError:
+                pass
+        
+        # Crear generador de superposición
+        overlay_generator = await create_clothing_overlay()
+        
+        # Generar try-on
+        result = await overlay_generator.create_virtual_try_on(
+            person_data,
+            clothing_data,
+            person_image.content_type,
+            clothing_image.content_type,
+            clothing_type,
+            style_prefs
+        )
+        
+        if result["success"]:
+            # Convertir imágenes a base64 para la respuesta
+            generated_images = []
+            for img in result["generated_images"]:
+                generated_images.append({
+                    "data": base64.b64encode(img["data"]).decode('utf-8'),
+                    "mime_type": img["mime_type"]
+                })
+            
+            return VirtualTryOnResponse(
+                success=True,
+                message="Try-on virtual completado exitosamente",
+                generated_images=generated_images,
+                metadata=result.get("metadata", {})
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Error desconocido en try-on virtual")
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error en try-on virtual: {str(e)}"
+        )
+
+
+@app.post("/analyze-clothing-fit", response_model=ClothingFitAnalysisResponse)
+async def analyze_clothing_fit(
+    person_image: UploadFile = File(..., description="Imagen de la persona"),
+    clothing_image: UploadFile = File(..., description="Imagen de la prenda")
+):
+    """
+    Analiza cómo quedaría una prenda en la persona.
+    
+    - **person_image**: Imagen de la persona
+    - **clothing_image**: Imagen de la prenda
+    """
+    try:
+        # Validar tipos de archivo
+        for image, name in [(person_image, "person"), (clothing_image, "clothing")]:
+            if not image.content_type or not image.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"El archivo {name} debe ser una imagen válida"
+                )
+        
+        # Verificar API key
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GEMINI_API_KEY o GOOGLE_API_KEY no está configurada"
+            )
+        
+        # Leer imágenes
+        person_data = await person_image.read()
+        clothing_data = await clothing_image.read()
+        
+        # Crear detector de torso
+        torso_detector = await create_torso_detector()
+        
+        # Analizar ajuste
+        analysis = await torso_detector.analyze_clothing_fit(
+            person_data,
+            clothing_data,
+            person_image.content_type,
+            clothing_image.content_type
+        )
+        
+        return ClothingFitAnalysisResponse(
+            success=True,
+            message="Análisis de ajuste completado exitosamente",
+            analysis=analysis
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error en análisis de ajuste: {str(e)}"
+        )
+
+
+@app.post("/multiple-angles", response_model=MultipleAnglesResponse)
+async def generate_multiple_angles(
+    person_image: UploadFile = File(..., description="Imagen de la persona"),
+    clothing_image: UploadFile = File(..., description="Imagen de la prenda"),
+    angles: str = Form("front,side,back", description="Ángulos deseados separados por comas")
+):
+    """
+    Genera múltiples ángulos de la persona con la prenda.
+    
+    - **person_image**: Imagen de la persona
+    - **clothing_image**: Imagen de la prenda
+    - **angles**: Ángulos deseados (front, side, back, etc.)
+    """
+    try:
+        # Validar tipos de archivo
+        for image, name in [(person_image, "person"), (clothing_image, "clothing")]:
+            if not image.content_type or not image.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"El archivo {name} debe ser una imagen válida"
+                )
+        
+        # Verificar API key
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GEMINI_API_KEY o GOOGLE_API_KEY no está configurada"
+            )
+        
+        # Leer imágenes
+        person_data = await person_image.read()
+        clothing_data = await clothing_image.read()
+        
+        # Parsear ángulos
+        angle_list = [angle.strip() for angle in angles.split(',')]
+        
+        # Crear generador de superposición
+        overlay_generator = await create_clothing_overlay()
+        
+        # Generar múltiples ángulos
+        result = await overlay_generator.create_multiple_angles(
+            person_data,
+            clothing_data,
+            person_image.content_type,
+            clothing_image.content_type,
+            angle_list
+        )
+        
+        if result["success"]:
+            # Convertir imágenes a base64
+            processed_angles = {}
+            for angle, images in result["angles"].items():
+                processed_angles[angle] = []
+                for img in images:
+                    processed_angles[angle].append({
+                        "data": base64.b64encode(img["data"]).decode('utf-8'),
+                        "mime_type": img["mime_type"]
+                    })
+            
+            return MultipleAnglesResponse(
+                success=True,
+                message=f"Generados {result['total_images']} ángulos exitosamente",
+                angles=processed_angles,
+                total_images=result["total_images"]
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error generando múltiples ángulos"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generando múltiples ángulos: {str(e)}"
+        )
+
+
+@app.post("/enhance-image", response_model=ImageEnhancementResponse)
+async def enhance_image(
+    image: UploadFile = File(..., description="Imagen a mejorar"),
+    enhancement_type: str = Form("realistic", description="Tipo de mejora (realistic, professional, natural)")
+):
+    """
+    Mejora una imagen para mayor realismo o calidad.
+    
+    - **image**: Imagen a mejorar
+    - **enhancement_type**: Tipo de mejora deseada
+    """
+    try:
+        # Validar tipo de archivo
+        if not image.content_type or not image.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El archivo debe ser una imagen válida"
+            )
+        
+        # Verificar API key
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GEMINI_API_KEY o GOOGLE_API_KEY no está configurada"
+            )
+        
+        # Leer imagen
+        image_data = await image.read()
+        
+        # Crear generador de superposición
+        overlay_generator = await create_clothing_overlay()
+        
+        # Mejorar imagen
+        result = await overlay_generator.enhance_try_on_result(
+            image_data,
+            image.content_type,
+            enhancement_type
+        )
+        
+        if result["success"]:
+            # Convertir imágenes a base64
+            enhanced_images = []
+            for img in result["enhanced_images"]:
+                enhanced_images.append({
+                    "data": base64.b64encode(img["data"]).decode('utf-8'),
+                    "mime_type": img["mime_type"]
+                })
+            
+            return ImageEnhancementResponse(
+                success=True,
+                message="Imagen mejorada exitosamente",
+                enhanced_images=enhanced_images,
+                enhancement_type=enhancement_type
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Error mejorando imagen")
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error mejorando imagen: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
