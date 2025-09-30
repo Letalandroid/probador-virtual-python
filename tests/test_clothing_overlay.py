@@ -141,3 +141,5 @@ class TestClothingOverlay:
         assert "slim" in prompt.lower()
         assert "formal" in prompt.lower()
         assert "elegant" in prompt.lower()
+
+

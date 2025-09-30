@@ -281,3 +281,4 @@ async def create_torso_detector() -> TorsoDetection:
         raise ValueError("GEMINI_API_KEY o GOOGLE_API_KEY no está configurada")
     
     return TorsoDetection(api_key)
+

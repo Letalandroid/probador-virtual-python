@@ -4,7 +4,7 @@ import time
 import base64
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from google.genai import types
@@ -32,7 +32,13 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],  # Frontend URLs
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:3000", 
+        "http://localhost:8080",  # Frontend Vite dev server
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8080"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +54,49 @@ async def health_check():
         status="healthy",
         message="Image Mixer API is running"
     )
+
+
+@app.get("/generated_images/{filename}")
+async def get_generated_image(filename: str):
+    """Serve generated images."""
+    try:
+        image_path = os.path.join("/home/lta/projects/probador_virtual/python/generated_images", filename)
+        
+        if not os.path.exists(image_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image not found"
+            )
+        
+        # Determine content type based on file extension
+        content_type = "image/jpeg"  # default
+        if filename.lower().endswith('.png'):
+            content_type = "image/png"
+        elif filename.lower().endswith('.gif'):
+            content_type = "image/gif"
+        elif filename.lower().endswith('.webp'):
+            content_type = "image/webp"
+        
+        # Read and return the image file
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+        
+        return Response(
+            content=image_data,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                "Access-Control-Allow-Origin": "*"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error serving image: {str(e)}"
+        )
 
 
 @app.post("/mix-images", response_model=MixImagesResponse)
@@ -312,12 +361,27 @@ async def virtual_try_on(
         )
         
         if result["success"]:
-            # Convertir imágenes a base64 para la respuesta
+            # Guardar imágenes localmente y devolver URLs
             generated_images = []
-            for img in result["generated_images"]:
+            output_dir = "/home/lta/projects/probador_virtual/python/generated_images"
+            
+            for i, img in enumerate(result["generated_images"]):
+                # Generar nombre único para la imagen
+                timestamp = int(time.time())
+                filename = f"virtual_try_on_{timestamp}_{i}.{img['mime_type'].split('/')[-1]}"
+                filepath = os.path.join(output_dir, filename)
+                
+                # Guardar imagen localmente
+                await save_binary_file(filepath, img["data"])
+                
+                # Crear URL para acceder a la imagen
+                image_url = f"http://localhost:8000/generated_images/{filename}"
+                
                 generated_images.append({
-                    "data": base64.b64encode(img["data"]).decode('utf-8'),
-                    "mime_type": img["mime_type"]
+                    "url": image_url,
+                    "filename": filename,
+                    "mime_type": img["mime_type"],
+                    "local_path": filepath
                 })
             
             return VirtualTryOnResponse(

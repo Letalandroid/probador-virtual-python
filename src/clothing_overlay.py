@@ -387,3 +387,4 @@ async def create_clothing_overlay() -> ClothingOverlay:
         raise ValueError("GEMINI_API_KEY o GOOGLE_API_KEY no está configurada")
     
     return ClothingOverlay(api_key)
+

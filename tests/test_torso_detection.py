@@ -125,3 +125,5 @@ class TestTorsoDetection:
             assert result["compatibility_score"] == 75.0  # Fallback value
             assert result["size_match"] == "good"
             assert result["recommendations"]["overall_verdict"] == "recommended"
+
+
