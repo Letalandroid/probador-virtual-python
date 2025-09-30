@@ -2,7 +2,13 @@
 name = "nano-banana-python"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["google-genai"]
+dependencies = [
+    "google-genai",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.5.0",
+]
 
 [dependency-groups]
 dev = ["pytest>=8.4.1"]
