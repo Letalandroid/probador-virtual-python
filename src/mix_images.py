@@ -4,6 +4,10 @@ import os
 import time
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 MODEL_NAME = "gemini-2.5-flash-image-preview"
 

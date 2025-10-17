@@ -8,6 +8,10 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 from models import (
     MixImagesResponse, 

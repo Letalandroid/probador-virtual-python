@@ -7,6 +7,10 @@ from typing import Dict, List, Tuple, Optional
 from google import genai
 from google.genai import types
 import json
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 
 class TorsoDetection:
