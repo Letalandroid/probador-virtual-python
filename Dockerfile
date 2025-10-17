@@ -1,32 +1,51 @@
+# Python Dockerfile
 FROM python:3.11-slim
 
-# Establecer directorio de trabajo
+# Set working directory
 WORKDIR /app
 
-# Instalar uv
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgcc-s1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for faster dependency management
 RUN pip install uv
 
-# Copiar archivos de configuración
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Instalar dependencias
+# Install dependencies
 RUN uv sync --frozen
 
-# Copiar código fuente
-COPY src/ ./src/
-COPY images/ ./images/
-COPY run_api.py ./
+# Copy source code
+COPY . .
 
-# Crear directorio de salida
-RUN mkdir -p output
+# Copy environment file if it exists
+COPY env.example .env
 
-# Exponer puerto
+# Create a non-root user
+RUN groupadd --gid 1001 pythonuser && \
+    useradd --uid 1001 --gid pythonuser --shell /bin/bash --create-home pythonuser
+
+# Change ownership of the app directory
+RUN chown -R pythonuser:pythonuser /app
+
+# Switch to non-root user
+USER pythonuser
+
+# Expose port
 EXPOSE 8000
 
-# Variables de entorno por defecto
-ENV HOST=0.0.0.0
-ENV PORT=8000
-ENV RELOAD=false
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando por defecto
-CMD ["python", "run_api.py"]
+# Run the application
+CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

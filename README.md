@@ -1,171 +1,199 @@
-# Nano Banana Python - Image Mixer API
+# Python AI API - Probador Virtual
 
-Este proyecto demuestra cómo mezclar de 1 a 5 imágenes usando Google Generative AI a través de una API REST con FastAPI.
+Servicio de IA para probador virtual usando Google Gemini API.
 
-## Setup
+## Características
 
-1.  **Clone the repository:**
+- **Detección de torso**: Análisis de pose humana en imágenes
+- **Superposición de prendas**: Aplicación virtual de ropa sobre personas
+- **Mezcla de imágenes**: Generación de imágenes combinadas
+- **Análisis de ajuste**: Evaluación de cómo se ve la ropa
+- **Múltiples ángulos**: Generación de vistas desde diferentes perspectivas
+- **Mejora de imágenes**: Optimización de calidad de imágenes
 
-    ```bash
-    git clone <repository_url>
-    cd nano-banana-python
-    ```
+## Configuración Rápida
 
-2.  **Install dependencies using `uv`:**
-
-    ```bash
-    uv sync
-    ```
-
-3.  **Set your Google Gemini API Key:**
-    Ensure you have your `GEMINI_API_KEY` or `GOOGLE_API_KEY` set as an environment variable.
-
-    ```bash
-    export GEMINI_API_KEY="YOUR_API_KEY"
-    # OR
-    export GOOGLE_API_KEY="YOUR_API_KEY"
-    ```
-
-## Uso de la API
-
-### Iniciar el servidor
+### 1. Instalar dependencias
 
 ```bash
-# Opción 1: Usar el script de inicio
-python run_api.py
+# Con uv (recomendado)
+uv sync
 
-# Opción 2: Usar uvicorn directamente
-uv run uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
-
-# Opción 3: Usar Docker
-docker build -t image-mixer-api .
-docker run -p 8000:8000 -e GEMINI_API_KEY=tu_api_key image-mixer-api
+# O con pip
+pip install -e .
 ```
 
-El servidor estará disponible en `http://localhost:8000`
-
-### Variables de entorno
-
-- `GEMINI_API_KEY` o `GOOGLE_API_KEY`: Tu clave de API de Google Gemini (requerida)
-- `HOST`: Host del servidor (por defecto: 0.0.0.0)
-- `PORT`: Puerto del servidor (por defecto: 8000)
-- `RELOAD`: Recargar automáticamente en desarrollo (por defecto: true)
-
-### Documentación de la API
-
-Una vez que el servidor esté ejecutándose, puedes acceder a:
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
-
-### Endpoints disponibles
-
-#### 1. Health Check
-```bash
-GET /health
-```
-
-#### 2. Mezclar imágenes
-```bash
-POST /mix-images
-```
-
-**Parámetros:**
-- `images`: Lista de archivos de imagen (1-5 imágenes) - **requerido**
-- `prompt`: Prompt personalizado para la mezcla - **opcional**
-- `output_dir`: Directorio de salida - **opcional** (por defecto: "output")
-
-### Ejemplos de uso
-
-#### Ejemplo 1: Mejorar una imagen (prompt por defecto)
+### 2. Configurar variables de entorno
 
 ```bash
-curl -X POST "http://localhost:8000/mix-images" \
-  -F "images=@images/man.jpeg"
+# Opción 1: Script automático
+./setup-env.sh
+
+# Opción 2: Manual
+cp env.example .env
+# Edita .env y agrega tu GEMINI_API_KEY
 ```
 
-#### Ejemplo 2: Combinar dos imágenes (prompt por defecto)
+### 3. Obtener API key de Gemini
+
+1. Visita: https://makersuite.google.com/app/apikey
+2. Crea una nueva API key
+3. Cópiala en el archivo `.env`:
+
+```env
+GEMINI_API_KEY=tu_api_key_aqui
+```
+
+### 4. Ejecutar el servidor
 
 ```bash
-curl -X POST "http://localhost:8000/mix-images" \
-  -F "images=@images/man.jpeg" \
-  -F "images=@images/cap.jpeg"
+python3 run_api.py
 ```
 
-#### Ejemplo 3: Combinar múltiples imágenes con prompt personalizado
+El servidor estará disponible en: http://localhost:8000
+
+## Uso con Docker
+
+### Construir imagen
 
 ```bash
-curl -X POST "http://localhost:8000/mix-images" \
-  -F "images=@images/man.jpeg" \
-  -F "images=@images/cap.jpeg" \
-  -F "images=@images/soda.jpeg" \
-  -F "prompt=Create a product advertisement with the man, cap, and soda."
+docker build -t probador-python-api .
 ```
 
-#### Ejemplo 4: Especificar directorio de salida
+### Ejecutar contenedor
 
 ```bash
-curl -X POST "http://localhost:8000/mix-images" \
-  -F "images=@images/man.jpeg" \
-  -F "images=@images/cap.jpeg" \
-  -F "prompt=Remix these two images." \
-  -F "output_dir=my_custom_output"
+docker run -p 8000:8000 \
+  -e GEMINI_API_KEY=tu_api_key_aqui \
+  probador-python-api
 ```
 
-### Uso con Python requests
-
-```python
-import requests
-
-# Mezclar imágenes
-files = [
-    ('images', open('images/man.jpeg', 'rb')),
-    ('images', open('images/cap.jpeg', 'rb'))
-]
-data = {
-    'prompt': 'Create a professional product photo',
-    'output_dir': 'output'
-}
-
-response = requests.post('http://localhost:8000/mix-images', files=files, data=data)
-result = response.json()
-
-print(f"Success: {result['success']}")
-print(f"Generated files: {result['generated_files']}")
-```
-
-### Probar la API
-
-Puedes usar el script de prueba incluido:
+### Con Docker Compose
 
 ```bash
-# Asegúrate de que la API esté ejecutándose en otra terminal
-python test_api.py
+# Desde la raíz del proyecto
+docker-compose up python-api
 ```
 
-## Uso del script original (CLI)
+## API Endpoints
 
-El script original de línea de comandos sigue disponible:
+### Health Check
+- **GET** `/health` - Estado del servicio
 
-### Example 1: Improve a single image (default prompt)
+### Detección de Torso
+- **POST** `/detect-torso` - Detectar torso en imagen
+
+### Probador Virtual
+- **POST** `/virtual-try-on` - Aplicar prenda virtualmente
+
+### Análisis de Ajuste
+- **POST** `/analyze-clothing-fit` - Analizar cómo se ve la ropa
+
+### Múltiples Ángulos
+- **POST** `/generate-multiple-angles` - Generar vistas desde diferentes ángulos
+
+### Mejora de Imagen
+- **POST** `/enhance-image` - Mejorar calidad de imagen
+
+### Mezcla de Imágenes
+- **POST** `/mix-images` - Combinar múltiples imágenes
+
+## Documentación Interactiva
+
+Una vez que el servidor esté ejecutándose, visita:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## Variables de Entorno
+
+| Variable | Descripción | Requerida | Default |
+|----------|-------------|-----------|---------|
+| `GEMINI_API_KEY` | API key de Google Gemini | ✅ | - |
+| `HOST` | Host del servidor | ❌ | 0.0.0.0 |
+| `PORT` | Puerto del servidor | ❌ | 8000 |
+| `RELOAD` | Recarga automática | ❌ | true |
+
+## Estructura del Proyecto
+
+```
+python/
+├── src/
+│   ├── api.py              # API principal de FastAPI
+│   ├── models.py           # Modelos de datos Pydantic
+│   ├── torso_detection.py  # Detección de torso humano
+│   ├── clothing_overlay.py # Superposición de prendas
+│   └── mix_images.py       # Mezcla de imágenes
+├── images/                 # Imágenes de ejemplo
+├── generated_images/       # Imágenes generadas
+├── output/                 # Imágenes de salida
+├── tests/                  # Tests unitarios
+├── Dockerfile             # Configuración Docker
+├── pyproject.toml         # Dependencias Python
+├── env.example            # Variables de entorno ejemplo
+└── run_api.py            # Script de inicio
+```
+
+## Desarrollo
+
+### Ejecutar tests
 
 ```bash
-uv run python src/mix_images.py -i images/man.jpeg
+# Con uv
+uv run pytest
+
+# Con pip
+pytest
 ```
 
-### Example 2: Combine two images (default prompt)
+### Modo desarrollo
 
 ```bash
-uv run python src/mix_images.py -i images/man.jpeg -i images/cap.jpeg
+# Con recarga automática
+uv run uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Example 3: Combine multiple images with a custom prompt
+### Linting
 
 ```bash
-uv run python src/mix_images.py -i images/man.jpeg -i images/cap.jpeg -i images/soda.jpeg --prompt "Create a product advertisement with the man, cap, and soda."
+# Verificar código
+uv run ruff check src/
+
+# Formatear código
+uv run ruff format src/
 ```
 
-### Example 4: Specify Output Directory
+## Troubleshooting
 
-```bash
-uv run python src/mix_images.py -i images/man.jpeg -i images/cap.jpeg --prompt "Remix these two images." --output-dir my_custom_output
-```
+### Error: "GEMINI_API_KEY no está configurada"
+
+1. Verifica que el archivo `.env` existe
+2. Confirma que contiene `GEMINI_API_KEY=tu_api_key`
+3. Reinicia el servidor
+
+### Error de conexión a Gemini
+
+1. Verifica que tu API key es válida
+2. Confirma que tienes cuota disponible
+3. Revisa la conectividad a internet
+
+### Problemas con imágenes
+
+1. Verifica que las imágenes están en formato soportado (JPEG, PNG)
+2. Confirma que el tamaño no excede los límites
+3. Revisa los permisos de escritura en directorios de salida
+
+## Logs
+
+Los logs se muestran en la consola. Para producción, considera usar un sistema de logging más robusto.
+
+## Contribuir
+
+1. Fork el proyecto
+2. Crea una rama para tu feature
+3. Haz commit de tus cambios
+4. Push a la rama
+5. Abre un Pull Request
+
+## Licencia
+
+Ver archivo LICENSE para más detalles.

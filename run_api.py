@@ -7,6 +7,10 @@ import uvicorn
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Agregar el directorio src al path para importar los módulos
 src_path = Path(__file__).parent / "src"
@@ -16,7 +20,11 @@ if __name__ == "__main__":
     # Verificar que la API key esté configurada
     if not os.environ.get("GEMINI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
         print("Error: GEMINI_API_KEY o GOOGLE_API_KEY debe estar configurada")
-        print("Ejecuta: export GEMINI_API_KEY='tu_api_key'")
+        print("Opción 1: Crea un archivo .env con tu API key:")
+        print("  GEMINI_API_KEY=tu_api_key_aqui")
+        print("Opción 2: Exporta la variable de entorno:")
+        print("  export GEMINI_API_KEY='tu_api_key'")
+        print("Opción 3: Copia env.example a .env y configura tu API key")
         sys.exit(1)
     
     # Configuración del servidor
