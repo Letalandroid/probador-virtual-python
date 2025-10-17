@@ -4,15 +4,12 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (minimal set for image processing)
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
     libgomp1 \
     libgcc-s1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster dependency management
