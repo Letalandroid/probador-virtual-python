@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 # Cargar variables de entorno desde .env
 load_dotenv()
 
-from models import (
+from .models import (
     MixImagesResponse, 
     HealthResponse, 
     ErrorResponse,
@@ -23,8 +23,8 @@ from models import (
     MultipleAnglesResponse,
     ImageEnhancementResponse
 )
-from torso_detection import create_torso_detector
-from clothing_overlay import create_clothing_overlay
+from .torso_detection import create_torso_detector
+from .clothing_overlay import create_clothing_overlay
 
 # Initialize FastAPI app
 app = FastAPI(
