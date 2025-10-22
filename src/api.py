@@ -2,6 +2,7 @@ import os
 import mimetypes
 import time
 import base64
+from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status
 from fastapi.responses import JSONResponse, Response
@@ -34,15 +35,10 @@ app = FastAPI(
 )
 
 # Configure CORS
+cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:3000", 
-        "http://localhost:8080",  # Frontend Vite dev server
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8080"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,7 +60,9 @@ async def health_check():
 async def get_generated_image(filename: str):
     """Serve generated images."""
     try:
-        image_path = os.path.join("/home/lta/projects/probador_virtual/python/generated_images", filename)
+        # Usar ruta relativa al directorio del proyecto
+        project_dir = Path(__file__).parent.parent
+        image_path = project_dir / "generated_images" / filename
         
         if not os.path.exists(image_path):
             raise HTTPException(
@@ -367,7 +365,9 @@ async def virtual_try_on(
         if result["success"]:
             # Guardar imágenes localmente y devolver URLs
             generated_images = []
-            output_dir = "/home/lta/projects/probador_virtual/python/generated_images"
+            # Usar ruta relativa al directorio del proyecto
+            project_dir = Path(__file__).parent.parent
+            output_dir = project_dir / "generated_images"
             
             for i, img in enumerate(result["generated_images"]):
                 # Generar nombre único para la imagen
@@ -379,7 +379,8 @@ async def virtual_try_on(
                 await save_binary_file(filepath, img["data"])
                 
                 # Crear URL para acceder a la imagen
-                image_url = f"http://localhost:8000/generated_images/{filename}"
+                base_url = os.environ.get("BASE_URL", "http://localhost:8000")
+                image_url = f"{base_url}/generated_images/{filename}"
                 
                 generated_images.append({
                     "url": image_url,

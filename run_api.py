@@ -33,7 +33,7 @@ if __name__ == "__main__":
     reload = os.environ.get("RELOAD", "true").lower() == "true"
     
     print(f"Iniciando servidor en http://{host}:{port}")
-    print("Documentación de la API disponible en http://localhost:8000/docs")
+    print(f"Documentación de la API disponible en http://{host}:{port}/docs")
     
     uvicorn.run(
         "src.api:app",

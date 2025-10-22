@@ -7,10 +7,13 @@ import requests
 import os
 from pathlib import Path
 
+# Configuración de la API
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
+
 def test_health():
     """Prueba el endpoint de health check."""
     try:
-        response = requests.get("http://localhost:8000/health")
+        response = requests.get(f"{API_BASE_URL}/health")
         response.raise_for_status()
         print("✅ Health check exitoso:")
         print(f"   Status: {response.json()['status']}")
@@ -44,7 +47,7 @@ def test_mix_images():
         }
         
         print(f"🔄 Enviando {len(files)} imágenes para mezclar...")
-        response = requests.post("http://localhost:8000/mix-images", files=files, data=data)
+        response = requests.post(f"{API_BASE_URL}/mix-images", files=files, data=data)
         
         # Cerrar archivos
         for _, file_obj in files:
