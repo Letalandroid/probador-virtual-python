@@ -36,7 +36,7 @@ if __name__ == "__main__":
     print("Documentación de la API disponible en http://localhost:8000/docs")
     
     uvicorn.run(
-        "api:app",
+        "src.api:app",
         host=host,
         port=port,
         reload=reload,
