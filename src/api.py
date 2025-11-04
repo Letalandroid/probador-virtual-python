@@ -365,28 +365,31 @@ async def virtual_try_on(
         if result["success"]:
             # Guardar imágenes localmente y devolver URLs
             generated_images = []
-            # Usar ruta relativa al directorio del proyecto
-            project_dir = Path(__file__).parent.parent
+
+            # Ruta relativa dentro del proyecto
+            project_dir = Path.cwd()
             output_dir = project_dir / "generated_images"
-            
+            output_dir.mkdir(parents=True, exist_ok=True)
+
             for i, img in enumerate(result["generated_images"]):
                 # Generar nombre único para la imagen
                 timestamp = int(time.time())
-                filename = f"virtual_try_on_{timestamp}_{i}.{img['mime_type'].split('/')[-1]}"
-                filepath = os.path.join(output_dir, filename)
-                
+                ext = img["mime_type"].split("/")[-1]
+                filename = f"virtual_try_on_{timestamp}_{i}.{ext}"
+                filepath = output_dir / filename  # ruta relativa
+
                 # Guardar imagen localmente
                 await save_binary_file(filepath, img["data"])
-                
+
                 # Crear URL para acceder a la imagen
                 base_url = os.environ.get("BASE_URL", "http://localhost:8000")
                 image_url = f"{base_url}/generated_images/{filename}"
-                
+
                 generated_images.append({
                     "url": image_url,
                     "filename": filename,
                     "mime_type": img["mime_type"],
-                    "local_path": filepath
+                    "local_path": str(filepath)
                 })
             
             return VirtualTryOnResponse(

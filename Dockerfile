@@ -1,48 +1,45 @@
-# Python Dockerfile
+# ---- Etapa base ----
 FROM python:3.11-slim
 
-# Set working directory
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Install system dependencies (minimal set for image processing)
-RUN apt-get update && apt-get install -y \
-    libglib2.0-0 \
-    libgomp1 \
-    libgcc-s1 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Instalar dependencias del sistema mínimas
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Install uv for faster dependency management
+# Instalar uv (gestor de dependencias rápido)
 RUN pip install uv
 
-# Copy dependency files
+# Copiar archivos de dependencias primero (para aprovechar la caché de Docker)
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-RUN uv sync --frozen
+# Instalar dependencias (usa el lock si existe)
+RUN uv sync --frozen || true
 
-# Copy source code
+# 👇 Instalar manualmente librerías que tu código usa directamente
+RUN pip install fastapi uvicorn python-dotenv google-genai python-multipart pydantic
+
+# Copiar todo el código fuente
 COPY . .
 
-# Copy environment file if it exists
+# Copiar archivo .env si existe
 COPY env.example .env
 
-# Create a non-root user
+# Crear usuario no root
 RUN groupadd --gid 1001 pythonuser && \
     useradd --uid 1001 --gid pythonuser --shell /bin/bash --create-home pythonuser
 
-# Change ownership of the app directory
-RUN chown -R pythonuser:pythonuser /app
+# Crear carpeta de imágenes y dar permisos
+RUN mkdir -p /app/generated_images && chown -R pythonuser:pythonuser /app/generated_images
+RUN chmod 777 /app/generated_images
 
-# Switch to non-root user
 USER pythonuser
 
-# Expose port
 EXPOSE 8000
 
-# Health check
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando de ejecución
+CMD ["python3", "run_api.py"]
