@@ -93,58 +93,60 @@ class ClothingOverlay:
             }
     
     def _create_try_on_prompt(self, clothing_type: str, style_preferences: Optional[Dict]) -> str:
-        """Crea un prompt específico para el tipo de prenda."""
-        
+        """Crea un prompt avanzado para superposición realista de prendas, adaptable al cuerpo y contexto."""
+
         base_prompts = {
             "shirt": """
-            Superpone esta prenda (camisa/camiseta) sobre la persona de manera realista.
-            Asegúrate de que:
-            - La prenda se ajuste naturalmente al cuerpo de la persona
-            - Los pliegues y sombras se vean realistas
-            - El color y textura de la prenda se mantengan
-            - La pose y proporciones de la persona se conserven
-            - La iluminación sea consistente
+            Superpone esta prenda (camisa o camiseta) sobre la persona de manera totalmente realista y natural.
+            Instrucciones detalladas:
+            - Adapta la prenda al contorno, forma y volumen corporal del usuario, sea delgado o con sobrepeso.
+            - Ajusta las proporciones de la prenda a la postura, inclinación y pose de la persona.
+            - Alinea perfectamente cuello, hombros, pecho, torso y brazos para lograr un ajuste anatómico real.
+            - Ajusta la prenda para seguir las curvas y pliegues naturales del cuerpo, sin deformar el rostro ni las manos.
+            - Conserva el color, textura y detalles (costuras, sombras, bordes) del producto original.
+            - Mantén coherencia total con la iluminación y dirección de luz de la fotografía.
+            - Evita duplicaciones, bordes recortados o superposiciones evidentes.
+            - La prenda debe parecer vestida, no pegada ni flotante.
+            - Integra la prenda con el entorno, respetando el fondo, la luz y el tono general de la escena.
+            - El resultado final debe parecer una foto realista de la persona vistiendo la prenda, adaptada perfectamente a su cuerpo.
             """,
-            "dress": """
-            Superpone este vestido sobre la persona de manera elegante y realista.
-            Asegúrate de que:
-            - El vestido se ajuste perfectamente a la silueta de la persona
-            - Los pliegues y caída del vestido se vean naturales
-            - El color y textura se mantengan fieles al original
-            - La pose de la persona sea apropiada para el vestido
-            - La iluminación resalte los detalles del vestido
-            """,
+
             "jacket": """
-            Superpone esta chaqueta/abrigo sobre la persona de manera realista.
-            Asegúrate de que:
-            - La chaqueta se ajuste correctamente a los hombros y torso
-            - Los botones, cremalleras y detalles se vean claramente
-            - El material y textura se mantengan auténticos
-            - La pose permita mostrar bien la chaqueta
-            - Las sombras y pliegues sean realistas
+            Coloca la chaqueta o abrigo sobre la persona de forma natural y ajustada al cuerpo.
+            - Adapta el tamaño y la caída según la complexión (delgada o con sobrepeso).
+            - Asegura que los hombros, cuello y mangas estén correctamente alineados.
+            - Mantén la textura del material (cuero, algodón, jean, etc.) y su interacción con la luz ambiente.
+            - Evita duplicaciones o cortes visibles.
+            - La prenda debe seguir los contornos reales del cuerpo, respetando pliegues, sombras y volumen.
             """,
-            "pants": """
-            Superpone estos pantalones sobre la persona de manera natural.
-            Asegúrate de que:
-            - Los pantalones se ajusten correctamente a la cintura y piernas
-            - La caída y pliegues se vean realistas
-            - El color y textura se mantengan
-            - La pose permita mostrar bien los pantalones
-            - Las proporciones sean correctas
-            """,
+
             "sweater": """
-            Superpone este suéter sobre la persona de manera cómoda y realista.
-            Asegúrate de que:
-            - El suéter se ajuste bien al torso y brazos
-            - La textura del tejido se vea auténtica
-            - Los pliegues y arrugas sean naturales
-            - El color se mantenga fiel al original
-            - La pose sea relajada y natural
+            Coloca el suéter sobre la persona adaptándolo a su cuerpo y postura.
+            - Ajusta el volumen y forma del tejido al contorno corporal.
+            - Mantén textura auténtica y sombras suaves según la dirección de la luz.
+            - Evita bordes duros o superposiciones poco naturales.
+            - La prenda debe parecer realmente vestida, con caída natural y coherente con la pose.
+            """,
+
+            "dress": """
+            Coloca el vestido sobre la persona ajustándolo de manera natural al cuerpo.
+            - Adapta la silueta del vestido según la complexión (curvas, volumen o delgadez).
+            - Ajusta los pliegues y caída para seguir el movimiento y postura del cuerpo.
+            - Mantén coherencia con la iluminación y fondo.
+            - Evita superposiciones visibles o deformaciones en la figura.
+            """,
+
+            "pants": """
+            Superpone los pantalones sobre la persona con ajuste anatómico y realista.
+            - Adapta la cintura, piernas y caderas según el tipo de cuerpo.
+            - Asegura que las líneas de costura y pliegues sigan el contorno real del usuario.
+            - Mantén color, textura y sombras fieles al producto original.
+            - Evita recortes, distorsiones o áreas flotantes.
             """
         }
-        
+
         base_prompt = base_prompts.get(clothing_type, base_prompts["shirt"])
-        
+
         # Agregar preferencias de estilo si se proporcionan
         if style_preferences:
             style_additions = []
