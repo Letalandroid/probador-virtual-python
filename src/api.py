@@ -2,6 +2,7 @@ import os
 import mimetypes
 import time
 import base64
+import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status
@@ -250,6 +251,17 @@ async def save_binary_file(file_name: str, data: bytes):
         f.write(data)
 
 
+async def delete_image_after_delay(filepath: Path, delay_seconds: int = 5):
+    """Elimina una imagen después de un delay especificado."""
+    await asyncio.sleep(delay_seconds)
+    try:
+        if filepath.exists():
+            filepath.unlink()
+            print(f"Imagen temporal eliminada: {filepath}")
+    except Exception as e:
+        print(f"Error al eliminar imagen temporal {filepath}: {str(e)}")
+
+
 # ==================== VIRTUAL TRY-ON ENDPOINTS ====================
 
 @app.post("/detect-torso", response_model=TorsoDetectionResponse)
@@ -391,6 +403,9 @@ async def virtual_try_on(
                     "mime_type": img["mime_type"],
                     "local_path": str(filepath)
                 })
+                
+                # Programar eliminación automática después de 5 segundos
+                asyncio.create_task(delete_image_after_delay(filepath, 5))
             
             return VirtualTryOnResponse(
                 success=True,
