@@ -32,7 +32,8 @@ class ClothingOverlay:
                                   person_mime: str,
                                   clothing_mime: str,
                                   clothing_type: str = "shirt",
-                                  style_preferences: Optional[Dict] = None) -> Dict:
+                                  style_preferences: Optional[Dict] = None,
+                                  product_info: Optional[Dict] = None) -> Dict:
         """
         Crea una imagen de la persona con la prenda superpuesta.
         
@@ -43,12 +44,13 @@ class ClothingOverlay:
             clothing_mime: MIME type de la imagen de la prenda
             clothing_type: Tipo de prenda (shirt, dress, jacket, etc.)
             style_preferences: Preferencias de estilo opcionales
+            product_info: Información completa del producto (tallas, género, descripción, etc.)
             
         Returns:
             Dict con la imagen resultante y metadatos
         """
-        # Crear prompt específico para el tipo de prenda
-        prompt = self._create_try_on_prompt(clothing_type, style_preferences)
+        # Crear prompt específico para el tipo de prenda con datos del producto
+        prompt = self._create_try_on_prompt(clothing_type, style_preferences, product_info)
         
         contents = [
             types.Part(
@@ -92,8 +94,8 @@ class ClothingOverlay:
                 "metadata": {}
             }
     
-    def _create_try_on_prompt(self, clothing_type: str, style_preferences: Optional[Dict]) -> str:
-        """Crea un prompt avanzado para superposición realista de prendas, adaptable al cuerpo y contexto."""
+    def _create_try_on_prompt(self, clothing_type: str, style_preferences: Optional[Dict], product_info: Optional[Dict] = None) -> str:
+        """Crea un prompt avanzado para superposición realista de prendas, adaptable al cuerpo y contexto usando datos del producto."""
 
         base_prompts = {
             "shirt": """
@@ -147,6 +149,40 @@ class ClothingOverlay:
 
         base_prompt = base_prompts.get(clothing_type, base_prompts["shirt"])
 
+        # Agregar información del producto al prompt
+        product_context = []
+        if product_info:
+            if product_info.get("product_name"):
+                product_context.append(f"Producto: {product_info['product_name']}")
+            
+            if product_info.get("product_brand"):
+                product_context.append(f"Marca: {product_info['product_brand']}")
+            
+            if product_info.get("product_category"):
+                product_context.append(f"Categoría: {product_info['product_category']}")
+            
+            if product_info.get("color"):
+                product_context.append(f"Color: {product_info['color']}")
+                base_prompt += f"\n- Respeta exactamente el color '{product_info['color']}' del producto original."
+            
+            if product_info.get("gender"):
+                gender = product_info['gender']
+                if gender in ['men', 'women', 'unisex']:
+                    gender_map = {'men': 'masculino', 'women': 'femenino', 'unisex': 'unisex'}
+                    product_context.append(f"Género: {gender_map.get(gender, gender)}")
+                    base_prompt += f"\n- Adapta la prenda para un estilo {gender_map.get(gender, gender)}, considerando las proporciones y ajustes típicos de este género."
+            
+            if product_info.get("sizes") and isinstance(product_info['sizes'], list) and len(product_info['sizes']) > 0:
+                sizes_str = ", ".join(product_info['sizes'])
+                product_context.append(f"Tallas disponibles: {sizes_str}")
+                base_prompt += f"\n- Considera que esta prenda está disponible en tallas {sizes_str}. Ajusta la prenda proporcionalmente según el tamaño del cuerpo de la persona en la imagen."
+            
+            if product_info.get("description"):
+                desc = product_info['description']
+                if desc and len(desc) > 0:
+                    product_context.append(f"Descripción: {desc[:200]}...")  # Limitar longitud
+                    base_prompt += f"\n- Características del producto: {desc[:150]}. Incorpora estos detalles en el ajuste y presentación de la prenda."
+
         # Agregar preferencias de estilo si se proporcionan
         if style_preferences:
             style_additions = []
@@ -161,7 +197,12 @@ class ClothingOverlay:
                 style_additions.append(f"Con un estilo {style_preferences['mood']}")
             
             if style_additions:
-                base_prompt += "\n\nRequisitos adicionales:\n" + "\n".join(f"- {req}" for req in style_additions)
+                base_prompt += "\n\nRequisitos adicionales de estilo:\n" + "\n".join(f"- {req}" for req in style_additions)
+        
+        # Agregar contexto del producto al final si existe
+        if product_context:
+            base_prompt += "\n\nContexto del producto:\n" + "\n".join(f"- {ctx}" for ctx in product_context)
+            base_prompt += "\n- Usa toda esta información para crear un ajuste más preciso y realista de la prenda sobre la persona."
         
         return base_prompt
     

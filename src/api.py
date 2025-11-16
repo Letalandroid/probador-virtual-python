@@ -321,7 +321,8 @@ async def virtual_try_on(
     person_image: UploadFile = File(..., description="Imagen de la persona"),
     clothing_image: UploadFile = File(..., description="Imagen de la prenda"),
     clothing_type: str = Form("shirt", description="Tipo de prenda (shirt, dress, jacket, etc.)"),
-    style_preferences: Optional[str] = Form(None, description="Preferencias de estilo en JSON")
+    style_preferences: Optional[str] = Form(None, description="Preferencias de estilo en JSON"),
+    product_data: Optional[str] = Form(None, description="Datos completos del producto en JSON")
 ):
     """
     Crea una imagen de la persona con la prenda superpuesta.
@@ -352,26 +353,34 @@ async def virtual_try_on(
         person_data = await person_image.read()
         clothing_data = await clothing_image.read()
         
-        # Parsear preferencias de estilo
+        # Parsear preferencias de estilo y datos del producto
+        import json
         style_prefs = None
         if style_preferences:
             try:
-                import json
                 style_prefs = json.loads(style_preferences)
+            except json.JSONDecodeError:
+                pass
+        
+        product_info = None
+        if product_data:
+            try:
+                product_info = json.loads(product_data)
             except json.JSONDecodeError:
                 pass
         
         # Crear generador de superposición
         overlay_generator = await create_clothing_overlay()
         
-        # Generar try-on
+        # Generar try-on con datos del producto
         result = await overlay_generator.create_virtual_try_on(
             person_data,
             clothing_data,
             person_image.content_type,
             clothing_image.content_type,
             clothing_type,
-            style_prefs
+            style_prefs,
+            product_info
         )
         
         if result["success"]:
