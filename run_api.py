@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/home/lta/projects/probador_virtual/python/env/bin/python3
+
 """
 Script para iniciar la API de mezcla de imágenes.
 """
