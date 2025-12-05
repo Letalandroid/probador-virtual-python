@@ -4,7 +4,6 @@ __pycache__/
 
 # IDE-specific files
 .idea/
-.vscode/
 
 # Virtual environment
 env/
@@ -17,3 +16,7 @@ env/
 /input/
 /example/
 generated_images/
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+branch_structure.json
